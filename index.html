@@ -240,39 +240,25 @@ function showHow(e) {
   e.preventDefault();
   if (!W.N) return;
   const w = W, n = (x, d = 2) => x.toLocaleString("en-MY", { minimumFractionDigits: d, maximumFractionDigits: d });
-  const adj = r2(w.C - w.C_formula);
+  const first = schedule[0];
   $("mTitle").textContent = "How total term charges is calculated";
   $("mBody").innerHTML = `
-    <h4>1. Formula (Sixth Schedule)</h4>
-    <div class="f">C = (N x P x R) / (100 x T x (1 - (1 + R / (100 x T))^-N)) - P</div>
+    <h4>1. Interest each month</h4>
+    <div class="f">Term charges = opening balance x EIR / 12, rounded to the nearest sen</div>
     <table>
-      <tr><td>P = Financing amount (Sales price - Deposit)</td><td>RM ${n(w.P)}</td></tr>
-      <tr><td>R = EIR (% p.a.)</td><td>${n(w.R)}%</td></tr>
-      <tr><td>T = Payments per year</td><td>12</td></tr>
+      <tr><td>Monthly rate = EIR / 12</td><td>${(w.i * 100).toFixed(5)}%</td></tr>
       <tr><td>N = Tenure (months)</td><td>${w.N}</td></tr>
     </table>
-    <h4>2. Numbers put in</h4>
-    <div class="f">Monthly rate = R / (100 x T) = ${n(w.R)} / 1,200 = ${(w.i).toFixed(8)}
-(1 + ${(w.i).toFixed(8)})^-${w.N} = ${w.pw.toFixed(8)}
-1 - ${w.pw.toFixed(8)} = ${(1 - w.pw).toFixed(8)}
-
-C = (${w.N} x ${n(w.P)} x ${(w.i).toFixed(8)}) / ${(1 - w.pw).toFixed(8)} - ${n(w.P)}
-C = ${n((w.N * w.P * w.i) / (1 - w.pw))} - ${n(w.P)}
-C = RM ${n(w.C_formula)}</div>
-    <h4>3. Instalment</h4>
-    <div class="f">(P + C) / N = (${n(w.P)} + ${n(w.C_formula)}) / ${w.N} = ${n(w.total / w.N, 4)}
-Rounded up to nearest ringgit = RM ${n(w.inst)}</div>
-    <h4>4. Final month interest</h4>
+    <h4>2. Example: month 1</h4>
+    <div class="f">Opening balance = RM ${n(first.open)}
+Term charges = ${n(first.open)} x ${n(w.R)}% / 12 = RM ${n(first.tc)}</div>
+    <h4>3. Final month</h4>
     <div class="f">Remaining principal = RM ${n(w.lastOpen)}
-Term charges = remaining principal x EIR / 12
-             = ${n(w.lastOpen)} x ${n(w.R)}% / 12 = RM ${n(w.finalTC)}
-Final instalment = ${n(w.lastOpen)} + ${n(w.finalTC)} = RM ${n(w.finalInst)}</div>
-    <h4>5. Total term charges shown</h4>
+Term charges = ${n(w.lastOpen)} x ${n(w.R)}% / 12 = RM ${n(w.finalTC)}</div>
+    <h4>4. Total term charges</h4>
     <div class="f">Months 1 to ${w.N - 1} = RM ${n(w.sumBefore)}
 Final month = RM ${n(w.finalTC)}
-Total = ${n(w.sumBefore)} + ${n(w.finalTC)} = RM ${n(w.C)}
-Sixth Schedule amount = RM ${n(w.C_formula)}
-Difference = RM ${n(adj)}</div>`;
+Total = ${n(w.sumBefore)} + ${n(w.finalTC)} = RM ${n(w.C)}</div>`;
   $("modal").classList.add("open");
 }
 $("howLink").addEventListener("click", showHow);
