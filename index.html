@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HP Repayment Calculator</title>
+<title>HP Repayment Calculator (New Formula)</title>
 <style>
   :root { --text:#111; --muted:#666; --line:#e5e5e5; --bg:#fff; --soft:#fafafa; }
   * { box-sizing: border-box; }
@@ -60,7 +60,7 @@
 <body>
 <div class="wrap">
   <h1>HP Repayment Calculator</h1>
-  <p class="sub">Reducing balance method, effective interest rate (EIR)</p>
+  <p class="sub">Reducing balance method, effective interest rate (EIR). Final month interest is calculated on the remaining principal.</p>
 
   <div class="grid">
     <div><label for="price">Sales price (RM)</label><input id="price" type="number" min="0" step="0.01" placeholder="e.g. 12000"></div>
@@ -97,7 +97,7 @@
     <p>2. Total term charges (Sixth Schedule): C = (N x P x R) / (100 x T x (1 - (1 + R / (100 x T))^-N)) - P, where P = financing amount, R = EIR % p.a., T = 12, N = tenure in months.</p>
     <p>3. Monthly instalment = (P + C) / N, rounded up to the nearest ringgit (no decimals).</p>
     <p>4. Each month: term charges = opening balance x EIR / 12; principal = instalment - term charges; closing balance = opening balance - principal.</p>
-    <p>5. Final instalment = remaining opening balance + (total term charges - sum of term charges for months 1 to N-1), rounded up to the nearest ringgit. The rounding (less than RM1) is added to the final term charges.</p>
+    <p>5. Final month: term charges = remaining principal (opening balance) x EIR / 12. Final instalment = remaining principal + that term charge. Total term charges shown is the sum of every month's term charges.</p>
   </div>
 </div>
 
@@ -203,9 +203,9 @@ function calc() {
       prin = r2(inst - tc);
       pay = inst;
     } else {
+      tc = r2(open * i);
       prin = r2(open);
-      pay = Math.ceil(r2(prin + (C - sumTC)));
-      tc = r2(pay - prin);
+      pay = r2(prin + tc);
     }
     sumTC = r2(sumTC + tc);
     bal = r2(open - prin);
@@ -262,14 +262,17 @@ C = RM ${n(w.C_formula)}</div>
     <h4>3. Instalment</h4>
     <div class="f">(P + C) / N = (${n(w.P)} + ${n(w.C_formula)}) / ${w.N} = ${n(w.total / w.N, 4)}
 Rounded up to nearest ringgit = RM ${n(w.inst)}</div>
-    <h4>4. Final instalment rounding</h4>
-    <div class="f">Term charges months 1 to ${w.N - 1} = RM ${n(w.sumBefore)}
-Final month term charges = ${n(w.C_formula)} - ${n(w.sumBefore)} = ${n(r2(w.C_formula - w.sumBefore))}
-Final instalment = ${n(w.lastOpen)} + ${n(r2(w.C_formula - w.sumBefore))} = ${n(r2(w.lastOpen + w.C_formula - w.sumBefore))}
-Rounded up to nearest ringgit = RM ${n(w.finalInst)}
-Rounding added to term charges = RM ${n(adj)}</div>
+    <h4>4. Final month interest</h4>
+    <div class="f">Remaining principal = RM ${n(w.lastOpen)}
+Term charges = remaining principal x EIR / 12
+             = ${n(w.lastOpen)} x ${n(w.R)}% / 12 = RM ${n(w.finalTC)}
+Final instalment = ${n(w.lastOpen)} + ${n(w.finalTC)} = RM ${n(w.finalInst)}</div>
     <h4>5. Total term charges shown</h4>
-    <div class="f">${n(w.C_formula)} + ${n(adj)} = RM ${n(w.C)}</div>`;
+    <div class="f">Months 1 to ${w.N - 1} = RM ${n(w.sumBefore)}
+Final month = RM ${n(w.finalTC)}
+Total = ${n(w.sumBefore)} + ${n(w.finalTC)} = RM ${n(w.C)}
+Sixth Schedule amount = RM ${n(w.C_formula)}
+Difference = RM ${n(adj)}</div>`;
   $("modal").classList.add("open");
 }
 $("howLink").addEventListener("click", showHow);
@@ -299,7 +302,9 @@ Principal    = instalment - term charges
 Closing balance = ${n(first.open)} - ${n(first.prin)} = RM ${n(first.close)}</div>
     <h4>4. Months and final instalment</h4>
     <div class="f">RM ${n(w.inst)} x ${w.N - 1} months, then final instalment RM ${n(w.finalInst)}
-(Final instalment = remaining balance + remaining term charges, rounded up to the nearest ringgit. See "Total term charges" for the detail.)</div>`;
+Final month term charges = remaining principal x EIR / 12
+                         = ${n(w.lastOpen)} x ${n(w.R)}% / 12 = RM ${n(w.finalTC)}
+Final instalment = ${n(w.lastOpen)} + ${n(w.finalTC)} = RM ${n(w.finalInst)}</div>`;
   $("modal").classList.add("open");
 }
 $("howInst").addEventListener("click", showInst);
