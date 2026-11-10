@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HP Repayment Calculator</title>
+<style>
+  :root { --text:#111; --muted:#666; --line:#e5e5e5; --bg:#fff; --soft:#fafafa; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 16px 48px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 28px; }
+  .grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+  @media (max-width:760px) { .grid { grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:420px) { .grid { grid-template-columns:1fr; } }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  input { width:100%; padding:10px 12px; font:15px/1.4 inherit; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--text); }
+  input:focus { outline:none; border-color:#999; }
+  input::placeholder { color:#aaa; }
+  input.invalid { border-color:#b00020; background:#fff6f6; }
+  input.invalid:focus { border-color:#b00020; }
+  .summary { display:grid; grid-template-columns:repeat(3, 1fr); gap:0; margin:28px 0 8px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  @media (max-width:760px) { .summary { grid-template-columns:repeat(2, 1fr); } }
+  .item { padding:14px 16px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .item .k { font-size:12px; color:var(--muted); }
+  .item .v { font-size:18px; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .note { font-size:12px; color:var(--muted); margin:8px 0 0; }
+  .warn { color:#b00020; }
+  .blocker { color:#b00020; font-weight:600; background:#fff6f6; border:1px solid #f0c2c8; border-radius:6px; padding:10px 12px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button:disabled:hover { background:#fff; }
+  .bar { display:flex; justify-content:space-between; align-items:center; margin:28px 0 10px; gap:12px; flex-wrap:wrap; }
+  .bar h2 { font-size:16px; font-weight:600; margin:0; }
+  button { padding:8px 14px; font-size:13px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--text); cursor:pointer; }
+  button:hover { background:var(--soft); }
+  .tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th, td { padding:8px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { font-size:12px; font-weight:600; color:var(--muted); background:var(--soft); position:sticky; top:0; }
+  th:first-child, td:first-child { text-align:center; }
+  tr.final td { font-weight:600; }
+  tfoot td { font-weight:600; background:var(--soft); border-bottom:none; }
+  .method { margin-top:28px; font-size:12px; color:var(--muted); }
+  .method p { margin:4px 0; }
+  .how { font-size:12px; color:var(--text); text-decoration:underline; display:inline-block; margin-top:4px; }
+  .how[hidden] { display:none !important; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .modal.open { display:flex; }
+  .box { background:#fff; border-radius:10px; max-width:640px; width:100%; max-height:90vh; overflow:auto; padding:22px 24px; box-shadow:0 10px 30px rgba(0,0,0,.15); }
+  .box h3 { margin:0 0 4px; font-size:17px; font-weight:600; }
+  .box .close { float:right; border:none; font-size:20px; line-height:1; padding:2px 6px; }
+  .f { font-family:ui-monospace, Menlo, Consolas, monospace; background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin:10px 0; white-space:pre-wrap; font-size:13px; }
+  .box table td { text-align:left; padding:6px 0; border-bottom:1px solid var(--line); }
+  .box table td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  .box h4 { font-size:13px; margin:16px 0 4px; }
+  @media print { button { display:none; } .wrap { padding:0; } th { position:static; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>HP Repayment Calculator</h1>
+  <p class="sub">Reducing balance method, effective interest rate (EIR)</p>
+
+  <div class="grid">
+    <div><label for="price">Sales price (RM)</label><input id="price" type="number" min="0" step="0.01" placeholder="e.g. 12000"></div>
+    <div><label for="deposit">Deposit (RM)</label><input id="deposit" type="number" min="0" step="0.01" placeholder="e.g. 2000"></div>
+    <div><label for="tenure">Tenure (months)</label><input id="tenure" type="number" min="0" step="1" placeholder="e.g. 60"></div>
+    <div><label for="eir">EIR (% p.a.)</label><input id="eir" type="number" min="0" step="0.01" placeholder="e.g. 17" aria-describedby="capNote"></div>
+  </div>
+
+  <div class="summary">
+    <div class="item"><div class="k">Financing amount</div><div class="v" id="sFin">-</div></div>
+    <div class="item"><div class="k">Total term charges</div><div class="v" id="sTC">-</div><a href="#" id="howLink" class="how">How is this calculated?</a></div>
+    <div class="item"><div class="k">Total payable</div><div class="v" id="sTotal">-</div></div>
+    <div class="item"><div class="k">Monthly instalment</div><div class="v" id="sInst">-</div><a href="#" id="howInst" class="how">How is this calculated?</a></div>
+    <div class="item"><div class="k">Final instalment</div><div class="v" id="sFinal">-</div></div>
+    <div class="item"><div class="k">Monthly rate (EIR / 12)</div><div class="v" id="sRate">-</div></div>
+  </div>
+  <p class="note" id="capNote"></p>
+
+  <div class="bar">
+    <h2>Repayment schedule</h2>
+    <div><button id="csv">Download CSV</button> <button onclick="window.print()">Print</button></div>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>No.</th><th>Opening balance</th><th>Instalment</th><th>Term charges</th><th>Principal</th><th>Closing balance</th></tr></thead>
+      <tbody id="rows"></tbody>
+      <tfoot><tr><td>Total</td><td></td><td id="tInst"></td><td id="tTC"></td><td id="tPrin"></td><td></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="method">
+    <p><strong>Method</strong></p>
+    <p>1. Financing amount = Sales price - Deposit.</p>
+    <p>2. Total term charges (Sixth Schedule): C = (N x P x R) / (100 x T x (1 - (1 + R / (100 x T))^-N)) - P, where P = financing amount, R = EIR % p.a., T = 12, N = tenure in months.</p>
+    <p>3. Monthly instalment = (P + C) / N, rounded up to the nearest ringgit (no decimals).</p>
+    <p>4. Each month: term charges = opening balance x EIR / 12; principal = instalment - term charges; closing balance = opening balance - principal.</p>
+    <p>5. Final instalment = remaining opening balance + (total term charges - sum of term charges for months 1 to N-1), rounded up to the nearest ringgit. The rounding (less than RM1) is added to the final term charges.</p>
+  </div>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="box">
+    <button class="close" id="mClose" aria-label="Close">&times;</button>
+    <h3 id="mTitle">How total term charges is calculated</h3>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const r2 = x => Math.round((x + Number.EPSILON) * 100) / 100;
+const fmt = x => isFinite(x) ? x.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+let schedule = [];
+let W = {};
+
+function setBlocked(on) {
+  $("eir").classList.toggle("invalid", on);
+  $("eir").toggleAttribute("aria-invalid", on);
+  $("howLink").hidden = on;
+  $("howInst").hidden = on;
+  $("csv").disabled = on;
+  if (on) $("modal").classList.remove("open");
+}
+
+function blockQuote(P, message) {
+  schedule = [];
+  W = {};
+  setBlocked(true);
+  $("sFin").textContent = "RM " + fmt(P);
+  $("sTC").textContent = "—";
+  $("sTotal").textContent = "—";
+  $("sInst").textContent = "—";
+  $("sFinal").textContent = "—";
+  $("sRate").textContent = "—";
+  $("rows").innerHTML = "";
+  $("tInst").textContent = "";
+  $("tTC").textContent = "";
+  $("tPrin").textContent = "";
+  const capNote = $("capNote");
+  capNote.textContent = message;
+  capNote.className = "note blocker";
+}
+
+function calc() {
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+  const price = num($("price").value);
+  const deposit = num($("deposit").value);
+  const N = Math.floor(num($("tenure").value));
+  const R = num($("eir").value);
+  const P = r2(price - deposit);
+
+  // Above 60 months: 16% p.a. At 60 months and below: 17% p.a.
+  if (N > 60 && R > 16) {
+    blockQuote(P, "EIR cannot exceed 16% p.a. when tenure is above 60 months.");
+    return;
+  }
+  if (R > 17) {
+    blockQuote(P, "EIR cannot exceed 17% p.a.");
+    return;
+  }
+  setBlocked(false);
+
+  if (N < 1) {
+    schedule = [];
+    W = {};
+    $("sFin").textContent = "RM " + fmt(P);
+    $("sTC").textContent = "RM " + fmt(0);
+    $("sTotal").textContent = "RM " + fmt(P);
+    $("sInst").textContent = "RM " + fmt(0);
+    $("sFinal").textContent = "RM " + fmt(0);
+    $("sRate").textContent = (R / 12).toFixed(5) + "%";
+    $("howLink").hidden = true;
+    $("howInst").hidden = true;
+    $("csv").disabled = true;
+    $("rows").innerHTML = "";
+    $("tInst").textContent = "";
+    $("tTC").textContent = "";
+    $("tPrin").textContent = "";
+    const capNote = $("capNote");
+    capNote.textContent = "Fixed rate cap for this tenure: 17% p.a. EIR.";
+    capNote.className = "note";
+    return;
+  }
+
+  const i = R / 100 / 12;
+
+  // Total term charges (Sixth Schedule formula)
+  let C = 0;
+  if (P > 0 && R > 0) C = r2((N * P * i) / (1 - Math.pow(1 + i, -N)) - P);
+  const total = r2(P + C);
+  const inst = Math.ceil(r2(total / N));
+
+  schedule = [];
+  let bal = P, sumTC = 0;
+  for (let k = 1; k <= N; k++) {
+    const open = bal;
+    let tc, prin, pay;
+    if (k < N) {
+      tc = r2(open * i);
+      prin = r2(inst - tc);
+      pay = inst;
+    } else {
+      prin = r2(open);
+      pay = Math.ceil(r2(prin + (C - sumTC)));
+      tc = r2(pay - prin);
+    }
+    sumTC = r2(sumTC + tc);
+    bal = r2(open - prin);
+    schedule.push({ k, open, pay, tc, prin, close: bal });
+  }
+
+  const finalInst = schedule.length ? schedule[schedule.length - 1].pay : 0;
+  const C_formula = C;
+  C = sumTC; const totalPay = r2(P + C);
+  W = { P, N, R, i, pw: Math.pow(1 + i, -N), raw: (N * P * i) / (1 - Math.pow(1 + i, -N)) - P, C_formula, total, inst, sumBefore: r2(sumTC - schedule[schedule.length - 1].tc), lastOpen: schedule[schedule.length - 1].open, finalInst: schedule[schedule.length - 1].pay, finalTC: schedule[schedule.length - 1].tc, C, totalPay };
+  $("sFin").textContent = "RM " + fmt(P);
+  $("sTC").textContent = "RM " + fmt(C);
+  $("sTotal").textContent = "RM " + fmt(totalPay);
+  $("sInst").textContent = "RM " + fmt(inst) + (N > 1 ? " x " + (N - 1) : "");
+  $("sFinal").textContent = "RM " + fmt(finalInst);
+  $("sRate").textContent = (i * 100).toFixed(5) + "%";
+
+  const capNote = $("capNote");
+  capNote.textContent = "Fixed rate cap for this tenure: " + (N > 60 ? 16 : 17) + "% p.a. EIR.";
+  capNote.className = "note";
+
+  const rows = schedule.map(s =>
+    `<tr${s.k === N ? ' class="final"' : ""}><td>${s.k}</td><td>${fmt(s.open)}</td><td>${fmt(s.pay)}</td><td>${fmt(s.tc)}</td><td>${fmt(s.prin)}</td><td>${fmt(Math.abs(s.close) < 0.005 ? 0 : s.close)}</td></tr>`).join("");
+  $("rows").innerHTML = rows;
+  const sum = f => r2(schedule.reduce((a, s) => a + s[f], 0));
+  $("tInst").textContent = fmt(sum("pay"));
+  $("tTC").textContent = fmt(sum("tc"));
+  $("tPrin").textContent = fmt(sum("prin"));
+}
+
+function showHow(e) {
+  e.preventDefault();
+  if (!W.N) return;
+  const w = W, n = (x, d = 2) => x.toLocaleString("en-MY", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const adj = r2(w.C - w.C_formula);
+  $("mTitle").textContent = "How total term charges is calculated";
+  $("mBody").innerHTML = `
+    <h4>1. Formula (Sixth Schedule)</h4>
+    <div class="f">C = (N x P x R) / (100 x T x (1 - (1 + R / (100 x T))^-N)) - P</div>
+    <table>
+      <tr><td>P = Financing amount (Sales price - Deposit)</td><td>RM ${n(w.P)}</td></tr>
+      <tr><td>R = EIR (% p.a.)</td><td>${n(w.R)}%</td></tr>
+      <tr><td>T = Payments per year</td><td>12</td></tr>
+      <tr><td>N = Tenure (months)</td><td>${w.N}</td></tr>
+    </table>
+    <h4>2. Numbers put in</h4>
+    <div class="f">Monthly rate = R / (100 x T) = ${n(w.R)} / 1,200 = ${(w.i).toFixed(8)}
+(1 + ${(w.i).toFixed(8)})^-${w.N} = ${w.pw.toFixed(8)}
+1 - ${w.pw.toFixed(8)} = ${(1 - w.pw).toFixed(8)}
+
+C = (${w.N} x ${n(w.P)} x ${(w.i).toFixed(8)}) / ${(1 - w.pw).toFixed(8)} - ${n(w.P)}
+C = ${n((w.N * w.P * w.i) / (1 - w.pw))} - ${n(w.P)}
+C = RM ${n(w.C_formula)}</div>
+    <h4>3. Instalment</h4>
+    <div class="f">(P + C) / N = (${n(w.P)} + ${n(w.C_formula)}) / ${w.N} = ${n(w.total / w.N, 4)}
+Rounded up to nearest ringgit = RM ${n(w.inst)}</div>
+    <h4>4. Final instalment rounding</h4>
+    <div class="f">Term charges months 1 to ${w.N - 1} = RM ${n(w.sumBefore)}
+Final month term charges = ${n(w.C_formula)} - ${n(w.sumBefore)} = ${n(r2(w.C_formula - w.sumBefore))}
+Final instalment = ${n(w.lastOpen)} + ${n(r2(w.C_formula - w.sumBefore))} = ${n(r2(w.lastOpen + w.C_formula - w.sumBefore))}
+Rounded up to nearest ringgit = RM ${n(w.finalInst)}
+Rounding added to term charges = RM ${n(adj)}</div>
+    <h4>5. Total term charges shown</h4>
+    <div class="f">${n(w.C_formula)} + ${n(adj)} = RM ${n(w.C)}</div>`;
+  $("modal").classList.add("open");
+}
+$("howLink").addEventListener("click", showHow);
+function showInst(e) {
+  e.preventDefault();
+  if (!W.N) return;
+  const w = W, n = (x, d = 2) => x.toLocaleString("en-MY", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const first = schedule[0];
+  $("mTitle").textContent = "How monthly instalment is calculated";
+  $("mBody").innerHTML = `
+    <h4>1. Formula</h4>
+    <div class="f">Monthly instalment = (P + C) / N, rounded up to the nearest ringgit</div>
+    <table>
+      <tr><td>P = Financing amount (Sales price - Deposit)</td><td>RM ${n(w.P)}</td></tr>
+      <tr><td>C = Total term charges (Sixth Schedule formula)</td><td>RM ${n(w.C_formula)}</td></tr>
+      <tr><td>N = Tenure (months)</td><td>${w.N}</td></tr>
+    </table>
+    <h4>2. Numbers put in</h4>
+    <div class="f">P + C = ${n(w.P)} + ${n(w.C_formula)} = ${n(w.total)}
+(P + C) / N = ${n(w.total)} / ${w.N} = ${n(w.total / w.N, 4)}
+Rounded up to nearest ringgit = RM ${n(w.inst)}</div>
+    <h4>3. How each instalment is split (example: month 1)</h4>
+    <div class="f">Term charges = opening balance x EIR / 12
+             = ${n(first.open)} x ${n(w.R)}% / 12 = RM ${n(first.tc)}
+Principal    = instalment - term charges
+             = ${n(w.inst)} - ${n(first.tc)} = RM ${n(first.prin)}
+Closing balance = ${n(first.open)} - ${n(first.prin)} = RM ${n(first.close)}</div>
+    <h4>4. Months and final instalment</h4>
+    <div class="f">RM ${n(w.inst)} x ${w.N - 1} months, then final instalment RM ${n(w.finalInst)}
+(Final instalment = remaining balance + remaining term charges, rounded up to the nearest ringgit. See "Total term charges" for the detail.)</div>`;
+  $("modal").classList.add("open");
+}
+$("howInst").addEventListener("click", showInst);
+$("mClose").addEventListener("click", () => $("modal").classList.remove("open"));
+$("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").classList.remove("open"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("modal").classList.remove("open"); });
+
+$("csv").addEventListener("click", () => {
+  const head = "No.,Opening balance,Instalment,Term charges,Principal,Closing balance";
+  const body = schedule.map(s => [s.k, s.open, s.pay, s.tc, s.prin, Math.abs(s.close) < 0.005 ? 0 : s.close].map(v => typeof v === "number" ? v.toFixed(v === s.k ? 0 : 2) : v).join(",")).join("\n");
+  const blob = new Blob([head + "\n" + body], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "repayment_schedule.csv"; a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+["price", "deposit", "tenure", "eir"].forEach(id => $(id).addEventListener("input", calc));
+calc();
+</script>
+</body>
+</html>
